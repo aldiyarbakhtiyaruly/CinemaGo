@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../data/seed_movies.dart';
 import '../models/movie.dart';
+import '../models/profile.dart';
 import 'movies_screen.dart';
 import 'favorites_screen.dart';
+import 'movie_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +19,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Movie> _movies = createSeedMovies();
 
+  Profile _profile = const Profile.empty();
+
   void _changeTab(int index) {
     setState(() {
       _selectedIndex = index;
@@ -24,20 +28,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _toggleFavorite(Movie movie) {
+    final index = _movies.indexWhere((item) => item.id == movie.id);
+
+    if (index == -1) return;
+
     setState(() {
-      final index = _movies.indexWhere((item) => item.id == movie.id);
-
-      if (index == -1) return;
-
       _movies[index] = movie.copyWith(isFavorite: !movie.isFavorite);
     });
   }
 
+  void _updateMovie(Movie updatedMovie) {
+    final index = _movies.indexWhere((item) => item.id == updatedMovie.id);
+
+    if (index == -1) return;
+
+    setState(() {
+      _movies[index] = updatedMovie;
+    });
+  }
+
   void _openMovie(Movie movie) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Selected: ${movie.title}'),
-        duration: const Duration(seconds: 2),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => MovieDetailScreen(
+          movie: movie,
+          profileName: _profile.name,
+          onBookingChanged: _updateMovie,
+          onOpenProfile: () => _changeTab(2),
+        ),
       ),
     );
   }
@@ -56,7 +74,14 @@ class _HomeScreenState extends State<HomeScreen> {
         onMovieTap: _openMovie,
         onExplore: () => _changeTab(0),
       ),
-      const ProfilePlaceholderScreen(),
+      ProfileScreen(
+        profile: _profile,
+        onSave: (updatedProfile) {
+          setState(() {
+            _profile = updatedProfile;
+          });
+        },
+      ),
     ];
 
     return Scaffold(
@@ -87,11 +112,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class ProfilePlaceholderScreen extends StatelessWidget {
-  const ProfilePlaceholderScreen({super.key});
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key, required this.profile, required this.onSave});
+
+  final Profile profile;
+  final ValueChanged<Profile> onSave;
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _groupController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _nameController = TextEditingController(text: widget.profile.name);
+
+    _groupController = TextEditingController(text: widget.profile.group);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _groupController.dispose();
+    super.dispose();
+  }
+
+  void _saveProfile() {
+    final updated = widget.profile.copyWith(
+      name: _nameController.text.trim(),
+      group: _groupController.text.trim(),
+    );
+
+    widget.onSave(updated);
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Profile saved')));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Profile screen coming soon'));
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Icon(Icons.account_circle, size: 80),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _nameController,
+          decoration: const InputDecoration(
+            labelText: 'Your name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _groupController,
+          decoration: const InputDecoration(
+            labelText: 'Your group',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 20),
+        FilledButton(
+          onPressed: _saveProfile,
+          child: const Text('Save profile'),
+        ),
+      ],
+    );
   }
 }
