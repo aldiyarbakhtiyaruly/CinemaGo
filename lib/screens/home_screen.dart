@@ -8,9 +8,17 @@ import 'favorites_screen.dart';
 import 'movie_detail_screen.dart';
 import 'movie_form_screen.dart';
 import 'movies_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    required this.themeMode,
+    required this.onThemeChanged,
+  });
+
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeChanged;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -19,7 +27,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  final List<Movie> _movies = createSeedMovies();
+  List<Movie> _movies = createSeedMovies();
 
   Profile _profile = const Profile.empty();
 
@@ -73,21 +81,139 @@ class _HomeScreenState extends State<HomeScreen> {
     _updateMovie(updated);
   }
 
+  Future<void> _deleteMovie(Movie movie) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete movie?'),
+          content: Text('Do you want to delete "${movie.title}"?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) return;
+
+    setState(() {
+      _movies.removeWhere((item) => item.id == movie.id);
+    });
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('${movie.title} deleted')));
+  }
+
   void _openMovie(Movie movie) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => MovieDetailScreen(
-          movie: movie,
-          profileName: _profile.name,
-          onBookingChanged: _updateMovie,
-          onOpenProfile: () => _changeTab(2),
-          onEdit: (selectedMovie) {
-            Navigator.of(context).pop();
-            _editMovie(selectedMovie);
-          },
-        ),
+        builder: (detailContext) {
+          return MovieDetailScreen(
+            movie: movie,
+            profileName: _profile.name,
+            onBookingChanged: _updateMovie,
+            onOpenProfile: () {
+              _changeTab(2);
+            },
+            onEdit: (selectedMovie) {
+              Navigator.of(detailContext).pop();
+              _editMovie(selectedMovie);
+            },
+            onDelete: (selectedMovie) {
+              Navigator.of(detailContext).pop();
+              _deleteMovie(selectedMovie);
+            },
+          );
+        },
       ),
     );
+  }
+
+  void _showAbout() {
+    Navigator.of(context).pop();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('About CinemaGo'),
+          content: const Text(
+            'CinemaGo is a Flutter movie booking app.\n\n'
+            'Features:\n'
+            '- Browse movies\n'
+            '- Search and filter\n'
+            '- Book tickets\n'
+            '- Manage favorites\n'
+            '- Create and edit sessions\n'
+            '- Dark mode\n\n'
+            'Version: 1.0.0',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _resetData() async {
+    Navigator.of(context).pop();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Reset data?'),
+          content: const Text(
+            'All changes, favorites and bookings will '
+            'be removed. The original 12 sessions '
+            'will be restored.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) return;
+
+    setState(() {
+      _movies = createSeedMovies();
+      _profile = const Profile.empty();
+      _selectedIndex = 0;
+    });
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Data reset successfully')));
   }
 
   @override
@@ -106,23 +232,58 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       ProfileScreen(
         profile: _profile,
+        movies: _movies,
+        themeMode: widget.themeMode,
         onSave: (updatedProfile) {
           setState(() {
             _profile = updatedProfile;
           });
         },
+        onThemeChanged: widget.onThemeChanged,
       ),
     ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('CinemaGo'), centerTitle: true),
+
+      drawer: Drawer(
+        child: SafeArea(
+          child: ListView(
+            children: [
+              const DrawerHeader(
+                child: Center(
+                  child: Text(
+                    'CinemaGo',
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('About'),
+                onTap: _showAbout,
+              ),
+
+              ListTile(
+                leading: const Icon(Icons.restart_alt),
+                title: const Text('Reset data'),
+                onTap: _resetData,
+              ),
+            ],
+          ),
+        ),
+      ),
+
       body: IndexedStack(index: _selectedIndex, children: screens),
+
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               onPressed: _addMovie,
               child: const Icon(Icons.add),
             )
           : null,
+
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _changeTab,
@@ -144,85 +305,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, required this.profile, required this.onSave});
-
-  final Profile profile;
-  final ValueChanged<Profile> onSave;
-
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  late final TextEditingController _nameController;
-  late final TextEditingController _groupController;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _nameController = TextEditingController(text: widget.profile.name);
-
-    _groupController = TextEditingController(text: widget.profile.group);
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _groupController.dispose();
-    super.dispose();
-  }
-
-  void _saveProfile() {
-    final updated = widget.profile.copyWith(
-      name: _nameController.text.trim(),
-      group: _groupController.text.trim(),
-    );
-
-    widget.onSave(updated);
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Profile saved')));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Icon(Icons.account_circle, size: 80),
-        const SizedBox(height: 20),
-
-        TextField(
-          controller: _nameController,
-          decoration: const InputDecoration(
-            labelText: 'Your name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        TextField(
-          controller: _groupController,
-          decoration: const InputDecoration(
-            labelText: 'Your group',
-            border: OutlineInputBorder(),
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        FilledButton(
-          onPressed: _saveProfile,
-          child: const Text('Save profile'),
-        ),
-      ],
     );
   }
 }

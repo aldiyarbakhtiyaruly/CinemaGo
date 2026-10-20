@@ -15,13 +15,16 @@ class MovieDetailScreen extends StatefulWidget {
     required this.onBookingChanged,
     required this.onOpenProfile,
     required this.onEdit,
+    required this.onDelete,
   });
 
   final Movie movie;
   final String profileName;
+
   final ValueChanged<Movie> onBookingChanged;
   final VoidCallback onOpenProfile;
   final ValueChanged<Movie> onEdit;
+  final ValueChanged<Movie> onDelete;
 
   @override
   State<MovieDetailScreen> createState() => _MovieDetailScreenState();
@@ -116,9 +119,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       attendees.add(name);
     }
 
-    final updated = movie.copyWith(attendees: attendees);
+    final updatedMovie = movie.copyWith(attendees: attendees);
 
-    widget.onBookingChanged(updated);
+    widget.onBookingChanged(updatedMovie);
 
     Navigator.of(context).pop();
   }
@@ -126,8 +129,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final movie = widget.movie;
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
     final countdown = calculateCountdown(movie.startsAt, _now);
 
@@ -145,16 +150,33 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           actions: [
             PopupMenuButton<String>(
               onSelected: (value) {
-                if (value == 'edit') {
-                  widget.onEdit(movie);
+                switch (value) {
+                  case 'edit':
+                    widget.onEdit(movie);
+                  case 'delete':
+                    widget.onDelete(movie);
                 }
               },
               itemBuilder: (context) => const [
-                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(
+                  value: 'edit',
+                  child: ListTile(
+                    leading: Icon(Icons.edit),
+                    title: Text('Edit'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete_outline),
+                    title: Text('Delete'),
+                  ),
+                ),
               ],
             ),
           ],
         ),
+
         body: Column(
           children: [
             Expanded(
@@ -332,10 +354,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       itemCount: movie.attendees.length,
       itemBuilder: (context, index) {
         final name = movie.attendees[index];
+
         final isYou = name == widget.profileName.trim();
 
         return ListTile(
-          leading: CircleAvatar(child: Text(name[0].toUpperCase())),
+          leading: CircleAvatar(
+            child: Text(name.isEmpty ? '?' : name[0].toUpperCase()),
+          ),
           title: Text(
             isYou ? '$name (You)' : name,
             style: TextStyle(
