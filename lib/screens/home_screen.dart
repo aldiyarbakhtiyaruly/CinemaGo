@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../data/seed_movies.dart';
 import '../models/movie.dart';
 import '../models/profile.dart';
-import 'movies_screen.dart';
+
 import 'favorites_screen.dart';
 import 'movie_detail_screen.dart';
+import 'movie_form_screen.dart';
+import 'movies_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,7 +35,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == -1) return;
 
     setState(() {
-      _movies[index] = movie.copyWith(isFavorite: !movie.isFavorite);
+      _movies[index] = _movies[index].copyWith(
+        isFavorite: !_movies[index].isFavorite,
+      );
     });
   }
 
@@ -47,6 +51,28 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _addMovie() async {
+    final movie = await Navigator.of(context).push<Movie>(
+      MaterialPageRoute(builder: (context) => const MovieFormScreen()),
+    );
+
+    if (!mounted || movie == null) return;
+
+    setState(() {
+      _movies.add(movie);
+    });
+  }
+
+  Future<void> _editMovie(Movie movie) async {
+    final updated = await Navigator.of(context).push<Movie>(
+      MaterialPageRoute(builder: (context) => MovieFormScreen(movie: movie)),
+    );
+
+    if (!mounted || updated == null) return;
+
+    _updateMovie(updated);
+  }
+
   void _openMovie(Movie movie) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -55,6 +81,10 @@ class _HomeScreenState extends State<HomeScreen> {
           profileName: _profile.name,
           onBookingChanged: _updateMovie,
           onOpenProfile: () => _changeTab(2),
+          onEdit: (selectedMovie) {
+            Navigator.of(context).pop();
+            _editMovie(selectedMovie);
+          },
         ),
       ),
     );
@@ -87,6 +117,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('CinemaGo'), centerTitle: true),
       body: IndexedStack(index: _selectedIndex, children: screens),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+              onPressed: _addMovie,
+              child: const Icon(Icons.add),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _changeTab,
@@ -161,6 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         const Icon(Icons.account_circle, size: 80),
         const SizedBox(height: 20),
+
         TextField(
           controller: _nameController,
           decoration: const InputDecoration(
@@ -168,7 +205,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             border: OutlineInputBorder(),
           ),
         ),
+
         const SizedBox(height: 16),
+
         TextField(
           controller: _groupController,
           decoration: const InputDecoration(
@@ -176,7 +215,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             border: OutlineInputBorder(),
           ),
         ),
+
         const SizedBox(height: 20),
+
         FilledButton(
           onPressed: _saveProfile,
           child: const Text('Save profile'),

@@ -14,12 +14,14 @@ class MovieDetailScreen extends StatefulWidget {
     required this.profileName,
     required this.onBookingChanged,
     required this.onOpenProfile,
+    required this.onEdit,
   });
 
   final Movie movie;
   final String profileName;
   final ValueChanged<Movie> onBookingChanged;
   final VoidCallback onOpenProfile;
+  final ValueChanged<Movie> onEdit;
 
   @override
   State<MovieDetailScreen> createState() => _MovieDetailScreenState();
@@ -84,7 +86,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           content: Text(
             alreadyBooked
                 ? 'Do you want to cancel your ticket?'
-                : 'Do you want to book a ticket for ${movie.title}?',
+                : 'Book a ticket for ${movie.title}?',
           ),
           actions: [
             TextButton(
@@ -106,17 +108,17 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
     if (!mounted || confirmed != true) return;
 
-    final updatedAttendees = List<String>.from(movie.attendees);
+    final attendees = List<String>.from(movie.attendees);
 
     if (alreadyBooked) {
-      updatedAttendees.remove(name);
+      attendees.remove(name);
     } else {
-      updatedAttendees.add(name);
+      attendees.add(name);
     }
 
-    final updatedMovie = movie.copyWith(attendees: updatedAttendees);
+    final updated = movie.copyWith(attendees: attendees);
 
-    widget.onBookingChanged(updatedMovie);
+    widget.onBookingChanged(updated);
 
     Navigator.of(context).pop();
   }
@@ -138,7 +140,21 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Movie Details')),
+        appBar: AppBar(
+          title: const Text('Movie Details'),
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') {
+                  widget.onEdit(movie);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+              ],
+            ),
+          ],
+        ),
         body: Column(
           children: [
             Expanded(
@@ -167,7 +183,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 16),
+
                   Row(
                     children: [
                       Chip(
@@ -184,9 +202,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 8),
+
                   Text(movie.title, style: textTheme.headlineSmall),
+
                   const SizedBox(height: 12),
+
                   Row(
                     children: [
                       const Icon(Icons.location_on_outlined),
@@ -194,7 +216,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       Expanded(child: Text(movie.cinema)),
                     ],
                   ),
+
                   const SizedBox(height: 8),
+
                   Row(
                     children: [
                       const Icon(Icons.calendar_today_outlined),
@@ -202,7 +226,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       Text(formatDate(movie.startsAt)),
                     ],
                   ),
+
                   const SizedBox(height: 20),
+
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -216,13 +242,16 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 16),
+
                   TabBar(
                     tabs: [
                       const Tab(text: 'About'),
                       Tab(text: 'Attendees ($taken)'),
                     ],
                   ),
+
                   SizedBox(
                     height: 230,
                     child: TabBarView(
@@ -232,6 +261,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 ],
               ),
             ),
+
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -302,7 +332,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       itemCount: movie.attendees.length,
       itemBuilder: (context, index) {
         final name = movie.attendees[index];
-
         final isYou = name == widget.profileName.trim();
 
         return ListTile(
