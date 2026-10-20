@@ -37,7 +37,6 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
   late final String _initialSnapshot;
 
   bool get _isEditing => widget.movie != null;
-
   bool get _dirty => _snapshot() != _initialSnapshot;
 
   @override
@@ -47,17 +46,13 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
     final movie = widget.movie;
 
     _titleController = TextEditingController(text: movie?.title ?? '');
-
     _cinemaController = TextEditingController(text: movie?.cinema ?? '');
-
     _capacityController = TextEditingController(
       text: movie?.capacity.toString() ?? '',
     );
-
     _descriptionController = TextEditingController(
       text: movie?.description ?? '',
     );
-
     _dateController = TextEditingController();
     _timeController = TextEditingController();
 
@@ -75,7 +70,6 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
         movie.startsAt.month,
         movie.startsAt.day,
       );
-
       _selectedTime = TimeOfDay.fromDateTime(movie.startsAt);
     }
 
@@ -93,9 +87,7 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
   }
 
   void _refresh() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
   String _snapshot() {
@@ -130,9 +122,7 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
     final date = _selectedDate;
     final time = _selectedTime;
 
-    if (date == null || time == null) {
-      return null;
-    }
+    if (date == null || time == null) return null;
 
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
@@ -141,11 +131,10 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
     if (_saving) return;
 
     final now = DateTime.now();
-    final current = _selectedDate ?? now;
 
     final picked = await showDatePicker(
       context: context,
-      initialDate: current,
+      initialDate: _selectedDate ?? now,
       firstDate: DateTime(2020),
       lastDate: DateTime(now.year + 5),
     );
@@ -182,7 +171,6 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
     if (_saving) return;
 
     final valid = _formKey.currentState?.validate() ?? false;
-
     if (!valid) return;
 
     final startsAt = _combinedDateTime();
@@ -226,28 +214,20 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Discard changes?'),
-          content: const Text(
-            'You have unsaved changes. Leave without saving?',
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text('You have unsaved changes. Leave without saving?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep editing'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('Keep editing'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Discard'),
-            ),
-          ],
-        );
-      },
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
     );
 
     if (!mounted || confirmed != true) return;
@@ -278,8 +258,6 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return PopScope<Movie>(
       canPop: _allowExit || (!_dirty && !_saving),
       onPopInvokedWithResult: (didPop, result) {
@@ -296,10 +274,9 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
             children: [
               Text(
                 _isEditing ? 'Edit movie session' : 'Create movie session',
-                style: theme.textTheme.headlineSmall,
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 20),
-
               TextFormField(
                 controller: _titleController,
                 focusNode: _titleFocus,
@@ -312,27 +289,17 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
                 ),
                 validator: (value) {
                   final title = (value ?? '').trim();
-
                   if (title.length < 3) {
                     return 'Minimum 3 characters';
                   }
-
                   if (title.length > 60) {
                     return 'Maximum 60 characters';
                   }
-
                   return null;
                 },
-                onFieldSubmitted: (_) {
-                  _cinemaFocus.requestFocus();
-                },
-                onTapOutside: (_) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
+                onFieldSubmitted: (_) => _cinemaFocus.requestFocus(),
               ),
-
               const SizedBox(height: 12),
-
               DropdownButtonFormField<MovieCategory>(
                 initialValue: _category,
                 decoration: const InputDecoration(
@@ -354,16 +321,10 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
                           _category = value;
                         });
                       },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Select a category';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    value == null ? 'Select a category' : null,
               ),
-
               const SizedBox(height: 16),
-
               SwitchListTile(
                 title: const Text('Online screening'),
                 subtitle: const Text('Online screenings require a URL'),
@@ -377,9 +338,7 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
                         _formKey.currentState?.validate();
                       },
               ),
-
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _cinemaController,
                 focusNode: _cinemaFocus,
@@ -399,22 +358,21 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
                     return 'This field is required';
                   }
 
-                  if (_isOnline && !text.contains('://')) {
-                    return 'Enter URL containing ://';
+                  if (_isOnline) {
+                    final uri = Uri.tryParse(text);
+
+                    if (uri == null ||
+                        !uri.hasAuthority ||
+                        (uri.scheme != 'http' && uri.scheme != 'https')) {
+                      return 'Enter a valid http:// or https:// URL';
+                    }
                   }
 
                   return null;
                 },
-                onFieldSubmitted: (_) {
-                  _capacityFocus.requestFocus();
-                },
-                onTapOutside: (_) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
+                onFieldSubmitted: (_) => _capacityFocus.requestFocus(),
               ),
-
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _capacityController,
                 focusNode: _capacityFocus,
@@ -440,37 +398,20 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
 
                   return null;
                 },
-                onFieldSubmitted: (_) {
-                  _descriptionFocus.requestFocus();
-                },
-                onTapOutside: (_) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
+                onFieldSubmitted: (_) => _descriptionFocus.requestFocus(),
               ),
-
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _descriptionController,
                 focusNode: _descriptionFocus,
                 maxLines: 3,
-                textInputAction: TextInputAction.done,
                 decoration: const InputDecoration(
                   labelText: 'Description (optional)',
                   alignLabelWithHint: true,
                   border: OutlineInputBorder(),
                 ),
-                validator: (_) => null,
-                onFieldSubmitted: (_) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                onTapOutside: (_) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
               ),
-
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _dateController,
                 readOnly: true,
@@ -479,17 +420,11 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
                   prefixIcon: Icon(Icons.calendar_today),
                   border: OutlineInputBorder(),
                 ),
-                onTap: _pickDate,
-                validator: (_) {
-                  if (_selectedDate == null) {
-                    return 'Select a date';
-                  }
-                  return null;
-                },
+                onTap: _saving ? null : _pickDate,
+                validator: (_) =>
+                    _selectedDate == null ? 'Select a date' : null,
               ),
-
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _timeController,
                 readOnly: true,
@@ -498,26 +433,24 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
                   prefixIcon: Icon(Icons.access_time),
                   border: OutlineInputBorder(),
                 ),
-                onTap: _pickTime,
+                onTap: _saving ? null : _pickTime,
                 validator: (_) {
                   if (_selectedTime == null) {
                     return 'Select a time';
                   }
 
-                  final dateTime = _combinedDateTime();
+                  final startsAt = _combinedDateTime();
 
                   if (!_isEditing &&
-                      dateTime != null &&
-                      !dateTime.isAfter(DateTime.now())) {
+                      startsAt != null &&
+                      !startsAt.isAfter(DateTime.now())) {
                     return 'Choose a future date and time';
                   }
 
                   return null;
                 },
               ),
-
               const SizedBox(height: 24),
-
               FilledButton.icon(
                 onPressed: _saving ? null : _save,
                 icon: _saving
@@ -529,7 +462,6 @@ class _MovieFormScreenState extends State<MovieFormScreen> {
                     : const Icon(Icons.save),
                 label: Text(_saving ? 'Saving...' : 'Save session'),
               ),
-
               const SizedBox(height: 24),
             ],
           ),

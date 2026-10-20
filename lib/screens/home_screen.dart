@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import '../data/seed_movies.dart';
 import '../models/movie.dart';
 import '../models/profile.dart';
+import '../navigation/routes.dart';
 
 import 'favorites_screen.dart';
-import 'movie_detail_screen.dart';
-import 'movie_form_screen.dart';
 import 'movies_screen.dart';
 import 'profile_screen.dart';
 
@@ -28,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   List<Movie> _movies = createSeedMovies();
-
   Profile _profile = const Profile.empty();
 
   void _changeTab(int index) {
@@ -43,26 +41,24 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == -1) return;
 
     setState(() {
-      _movies[index] = _movies[index].copyWith(
-        isFavorite: !_movies[index].isFavorite,
-      );
+      final current = _movies[index];
+      _movies[index] = current.copyWith(isFavorite: !current.isFavorite);
     });
   }
 
-  void _updateMovie(Movie updatedMovie) {
-    final index = _movies.indexWhere((item) => item.id == updatedMovie.id);
+  void _updateMovie(Movie movie) {
+    final index = _movies.indexWhere((item) => item.id == movie.id);
 
     if (index == -1) return;
 
     setState(() {
-      _movies[index] = updatedMovie;
+      _movies[index] = movie;
     });
   }
 
   Future<void> _addMovie() async {
-    final movie = await Navigator.of(context).push<Movie>(
-      MaterialPageRoute(builder: (context) => const MovieFormScreen()),
-    );
+    final movie = await Navigator.of(context)
+        .pushNamed<Movie>(Routes.form, arguments: const MovieFormArgs());
 
     if (!mounted || movie == null) return;
 
@@ -72,9 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _editMovie(Movie movie) async {
-    final updated = await Navigator.of(context).push<Movie>(
-      MaterialPageRoute(builder: (context) => MovieFormScreen(movie: movie)),
-    );
+    final updated = await Navigator.of(context)
+        .pushNamed<Movie>(Routes.form, arguments: MovieFormArgs(movie: movie));
 
     if (!mounted || updated == null) return;
 
@@ -84,26 +79,24 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _deleteMovie(Movie movie) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Delete movie?'),
-          content: Text('Do you want to delete "${movie.title}"?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete movie?'),
+        content: Text('Delete "${movie.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
 
     if (!mounted || confirmed != true) return;
@@ -117,25 +110,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openMovie(Movie movie) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (detailContext) {
-          return MovieDetailScreen(
-            movie: movie,
-            profileName: _profile.name,
-            onBookingChanged: _updateMovie,
-            onOpenProfile: () {
-              _changeTab(2);
-            },
-            onEdit: (selectedMovie) {
-              Navigator.of(detailContext).pop();
-              _editMovie(selectedMovie);
-            },
-            onDelete: (selectedMovie) {
-              Navigator.of(detailContext).pop();
-              _deleteMovie(selectedMovie);
-            },
-          );
+    Navigator.of(context).pushNamed<void>(
+      Routes.detail,
+      arguments: MovieDetailArgs(
+        movie: movie,
+        profileName: _profile.name,
+        onBookingChanged: _updateMovie,
+        onOpenProfile: () {
+          _changeTab(2);
+        },
+        onEdit: (selectedMovie) {
+          Navigator.of(context).pop();
+          _editMovie(selectedMovie);
+        },
+        onDelete: (selectedMovie) {
+          Navigator.of(context).pop();
+          _deleteMovie(selectedMovie);
         },
       ),
     );
@@ -146,30 +136,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('About CinemaGo'),
-          content: const Text(
-            'CinemaGo is a Flutter movie booking app.\n\n'
-            'Features:\n'
-            '- Browse movies\n'
-            '- Search and filter\n'
-            '- Book tickets\n'
-            '- Manage favorites\n'
-            '- Create and edit sessions\n'
-            '- Dark mode\n\n'
-            'Version: 1.0.0',
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('About CinemaGo'),
+        content: const Text(
+          'CinemaGo is a Flutter movie booking app.\n\n'
+          'Browse screenings, search, filter, '
+          'book tickets and manage favorites.\n\n'
+          'Version: 1.0.0\n'
+          'Storage: In memory',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('OK'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -178,30 +162,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Reset data?'),
-          content: const Text(
-            'All changes, favorites and bookings will '
-            'be removed. The original 12 sessions '
-            'will be restored.',
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset data?'),
+        content: const Text(
+          'Restore the original 12 movies and '
+          'clear your profile and bookings?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            child: const Text('Cancel'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Reset'),
-            ),
-          ],
-        );
-      },
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
     );
 
     if (!mounted || confirmed != true) return;
@@ -245,26 +226,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('CinemaGo'), centerTitle: true),
-
       drawer: Drawer(
         child: SafeArea(
           child: ListView(
             children: [
-              const DrawerHeader(
+              DrawerHeader(
                 child: Center(
                   child: Text(
                     'CinemaGo',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ),
               ),
-
               ListTile(
                 leading: const Icon(Icons.info_outline),
                 title: const Text('About'),
                 onTap: _showAbout,
               ),
-
               ListTile(
                 leading: const Icon(Icons.restart_alt),
                 title: const Text('Reset data'),
@@ -274,16 +252,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-
       body: IndexedStack(index: _selectedIndex, children: screens),
-
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               onPressed: _addMovie,
               child: const Icon(Icons.add),
             )
           : null,
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _changeTab,

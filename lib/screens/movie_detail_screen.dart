@@ -20,7 +20,6 @@ class MovieDetailScreen extends StatefulWidget {
 
   final Movie movie;
   final String profileName;
-
   final ValueChanged<Movie> onBookingChanged;
   final VoidCallback onOpenProfile;
   final ValueChanged<Movie> onEdit;
@@ -31,18 +30,18 @@ class MovieDetailScreen extends StatefulWidget {
 }
 
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
-  late Timer _timer;
   late DateTime _now;
+  late Timer _timer;
+  late Movie _movie;
 
   @override
   void initState() {
     super.initState();
-
+    _movie = widget.movie;
     _now = DateTime.now();
 
     _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (!mounted) return;
-
       setState(() {
         _now = DateTime.now();
       });
@@ -56,18 +55,19 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   }
 
   Future<void> _handleBooking() async {
-    final movie = widget.movie;
     final name = widget.profileName.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
         SnackBar(
           content: const Text('Please enter your name in Profile first'),
           action: SnackBarAction(
             label: 'Profile',
             onPressed: () {
-              Navigator.of(context).pop();
+              if (!mounted) return;
               widget.onOpenProfile();
+              Navigator.of(context).pop();
             },
           ),
         ),
@@ -75,43 +75,37 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       return;
     }
 
-    final alreadyBooked = movie.contains(name);
+    final alreadyBooked = _movie.contains(name);
 
-    if (!alreadyBooked && (movie.isFull || movie.isPast)) {
+    if (!alreadyBooked && (_movie.isFull || _movie.isPast)) {
       return;
     }
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(alreadyBooked ? 'Cancel booking?' : 'Book ticket?'),
-          content: Text(
-            alreadyBooked
-                ? 'Do you want to cancel your ticket?'
-                : 'Book a ticket for ${movie.title}?',
+      builder: (dialogContext) => AlertDialog(
+        title: Text(alreadyBooked ? 'Cancel booking?' : 'Book ticket?'),
+        content: Text(
+          alreadyBooked
+              ? 'Cancel your booking for ${_movie.title}?'
+              : 'Book a ticket for ${_movie.title}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('No'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('No'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Yes'),
-            ),
-          ],
-        );
-      },
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
     );
 
     if (!mounted || confirmed != true) return;
 
-    final attendees = List<String>.from(movie.attendees);
+    final attendees = List<String>.from(_movie.attendees);
 
     if (alreadyBooked) {
       attendees.remove(name);
@@ -119,27 +113,33 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       attendees.add(name);
     }
 
-    final updatedMovie = movie.copyWith(attendees: attendees);
+    final updated = _movie.copyWith(attendees: attendees);
 
-    widget.onBookingChanged(updatedMovie);
+    setState(() {
+      _movie = updated;
+    });
 
-    Navigator.of(context).pop();
+    widget.onBookingChanged(updated);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          alreadyBooked ? 'Booking cancelled' : 'Ticket booked successfully',
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final movie = widget.movie;
-
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final textTheme = theme.textTheme;
+    final movie = _movie;
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     final countdown = calculateCountdown(movie.startsAt, _now);
-
-    final booked = movie.contains(widget.profileName.trim());
-
+    final name = widget.profileName.trim();
+    final booked = name.isNotEmpty && movie.contains(name);
     final canBook = booked || (!movie.isFull && !movie.isPast);
-
     final (:taken, :free) = movie.places;
 
     return DefaultTabController(
@@ -176,7 +176,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             ),
           ],
         ),
-
         body: Column(
           children: [
             Expanded(
@@ -205,9 +204,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   Row(
                     children: [
                       Chip(
@@ -224,13 +221,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(movie.title, style: textTheme.headlineSmall),
-
                   const SizedBox(height: 12),
-
                   Row(
                     children: [
                       const Icon(Icons.location_on_outlined),
@@ -238,9 +231,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       Expanded(child: Text(movie.cinema)),
                     ],
                   ),
-
                   const SizedBox(height: 8),
-
                   Row(
                     children: [
                       const Icon(Icons.calendar_today_outlined),
@@ -248,9 +239,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       Text(formatDate(movie.startsAt)),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -264,16 +253,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   TabBar(
                     tabs: [
                       const Tab(text: 'About'),
                       Tab(text: 'Attendees ($taken)'),
                     ],
                   ),
-
                   SizedBox(
                     height: 230,
                     child: TabBarView(
@@ -283,7 +269,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 ],
               ),
             ),
-
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -325,14 +310,15 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   }
 
   Widget _buildAbout(Movie movie) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('About this movie', style: textTheme.titleMedium),
+          Text(
+            'About this movie',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 12),
           Text(movie.description ?? 'No description available.'),
           const SizedBox(height: 12),
@@ -354,8 +340,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       itemCount: movie.attendees.length,
       itemBuilder: (context, index) {
         final name = movie.attendees[index];
-
-        final isYou = name == widget.profileName.trim();
+        final isYou =
+            widget.profileName.trim().isNotEmpty &&
+            name == widget.profileName.trim();
 
         return ListTile(
           leading: CircleAvatar(
