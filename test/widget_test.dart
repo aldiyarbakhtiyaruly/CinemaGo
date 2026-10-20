@@ -3,11 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cinemago/main.dart';
 
 void main() {
-  testWidgets('CinemaGo welcome screen test', (tester) async {
+  testWidgets('CinemaGo shows three tabs', (tester) async {
     await tester.pumpWidget(const CinemaGoApp());
 
     expect(find.text('CinemaGo'), findsOneWidget);
-    expect(find.text('Welcome to CinemaGo'), findsOneWidget);
-    expect(find.byIcon(Icons.local_movies), findsOneWidget);
+    expect(find.text('Movies'), findsOneWidget);
+    expect(find.text('Favorites'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
+
+    expect(find.byType(NavigationBar), findsOneWidget);
   });
 }
